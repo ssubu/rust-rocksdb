@@ -239,6 +239,13 @@ impl Options {
         }
     }
 
+
+    pub fn set_compression_options(&mut self, window_bits: c_int, level: c_int, strategy: c_int, max_dict_bytes: c_int) {
+        unsafe {
+            ffi::rocksdb_options_set_compression_options(self.inner, window_bits, level, strategy, max_dict_bytes);
+        }
+    }
+
     /// Different levels can have different compression policies. There
     /// are cases where most lower levels would like to use quick compression
     /// algorithms while the higher levels (which have more data) use
