@@ -98,8 +98,8 @@ pub struct DB {
 ///
 /// A description of the column family, containing the name and `Options`.
 pub struct ColumnFamilyDescriptor {
-    name: String,
-    options: Options,
+    pub name: String,
+    pub options: Options,
 }
 
 /// A simple wrapper round a string, used for errors reported from
