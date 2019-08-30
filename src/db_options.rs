@@ -118,6 +118,13 @@ impl BlockBasedOptions {
         }
     }
 
+    pub fn set_pin_l0_filter_and_blocks_in_cache(&mut self, v: bool) {
+        unsafe {
+            ffi::rocksdb_block_based_options_set_pin_l0_filter_and_index_blocks_in_cache(self.inner, v as u8)
+        }
+    }
+
+
     /// Defines the index type to be used for SS-table lookups.
     ///
     /// # Example
@@ -929,6 +936,12 @@ impl Options {
     pub fn set_max_background_compactions(&mut self, n: c_int) {
         unsafe {
             ffi::rocksdb_options_set_max_background_compactions(self.inner, n);
+        }
+    }
+
+    pub fn set_max_subcompactions(&mut self, n: c_int) {
+        unsafe {
+            ffi::rocksdb_options_set_max_subcompactions(self.inner, n as u32);
         }
     }
 
