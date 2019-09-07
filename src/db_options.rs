@@ -27,7 +27,7 @@ use merge_operator::{
 use slice_transform::SliceTransform;
 use {
     BlockBasedIndexType, BlockBasedOptions, DBCompactionStyle, DBCompressionType, DBRecoveryMode,
-    FlushOptions, MemtableFactory, Options, PlainTableFactoryOptions, WriteOptions,
+    FlushOptions, MemtableFactory, Options, PlainTableFactoryOptions, WriteOptions, CompactOptions
 };
 
 pub fn new_cache(capacity: size_t) -> *mut ffi::rocksdb_cache_t {
@@ -38,11 +38,13 @@ pub fn new_cache(capacity: size_t) -> *mut ffi::rocksdb_cache_t {
 // pointer. In most cases, however, this pointer is Send-safe because it is never aliased and
 // rocksdb internally does not rely on thread-local information for its user-exposed types.
 unsafe impl Send for Options {}
+unsafe impl Send for CompactOptions {}
 unsafe impl Send for WriteOptions {}
 unsafe impl Send for BlockBasedOptions {}
 // Sync is similarly safe for many types because they do not expose interior mutability, and their
 // use within the rocksdb library is generally behind a const reference
 unsafe impl Sync for Options {}
+unsafe impl Sync for CompactOptions {}
 unsafe impl Sync for WriteOptions {}
 unsafe impl Sync for BlockBasedOptions {}
 
@@ -74,6 +76,46 @@ impl Drop for WriteOptions {
     fn drop(&mut self) {
         unsafe {
             ffi::rocksdb_writeoptions_destroy(self.inner);
+        }
+    }
+}
+
+impl Drop for CompactOptions {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::rocksdb_compactfilesoptions_destroy(self.inner);
+        }
+    }
+}
+
+
+impl Default for CompactOptions {
+    fn default() -> CompactOptions {
+        let compact_files_opts = unsafe { ffi::rocksdb_compactfilesoptions_create() };
+        if compact_files_opts.is_null() {
+            panic!("Could not create RocksDB compact options");
+        }
+        CompactOptions { inner: compact_files_opts }
+    }
+}
+
+impl CompactOptions {
+
+    pub fn set_compression_type(&mut self, t: DBCompressionType) {
+        unsafe {
+            ffi::rocksdb_compactfilesoptions_set_compression(self.inner, t as c_int);
+        }
+    }
+
+    pub fn set_max_subcompactions(&mut self, n: c_int) {
+        unsafe {
+            ffi::rocksdb_compactfilesoptions_set_max_subcompactions(self.inner, n as u32);
+        }
+    }
+
+    pub fn set_output_file_size_limit(&mut self, limit: size_t) {
+        unsafe {
+            ffi::rocksdb_compactfilesoptions_set_output_file_size_limit(self.inner, limit as u64);
         }
     }
 }
@@ -806,7 +848,6 @@ impl Options {
             ffi::rocksdb_options_set_target_file_size_base(self.inner, size);
         }
     }
-
     /// Sets the minimum number of write buffers that will be merged together
     /// before writing to storage.  If set to `1`, then
     /// all write buffers are flushed to L0 as individual files and this increases

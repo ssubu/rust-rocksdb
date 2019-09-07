@@ -15,7 +15,7 @@
 
 use ffi;
 use ffi_util::opt_bytes_to_ptr;
-use {ColumnFamily, ColumnFamilyDescriptor, Error, FlushOptions, Options, WriteOptions, DB};
+use {ColumnFamily, ColumnFamilyDescriptor, Error, FlushOptions, Options, WriteOptions, CompactOptions, DB};
 
 use libc::{self, c_char, c_int, c_uchar, c_void, size_t};
 use std::collections::BTreeMap;
@@ -709,46 +709,46 @@ impl DB {
         P: AsRef<Path>,
         I: IntoIterator<Item = ColumnFamilyDescriptor>,
     {
-        let cfs: Vec<_> = cfs.into_iter().collect();
+    let cfs: Vec<_> = cfs.into_iter().collect();
 
-        let path = path.as_ref();
-        let cpath = match CString::new(path.to_string_lossy().as_bytes()) {
-            Ok(c) => c,
-            Err(_) => {
-                return Err(Error::new(
-                    "Failed to convert path to CString \
-                     when opening DB."
-                        .to_owned(),
-                ));
-            }
-        };
-
-        if let Err(e) = fs::create_dir_all(&path) {
-            return Err(Error::new(format!(
-                "Failed to create RocksDB directory: `{:?}`.",
-                e
-            )));
+    let path = path.as_ref();
+    let cpath = match CString::new(path.to_string_lossy().as_bytes()) {
+        Ok(c) => c,
+        Err(_) => {
+            return Err(Error::new(
+                "Failed to convert path to CString \
+                    when opening DB."
+                    .to_owned(),
+            ));
         }
+    };
 
-        let db: *mut ffi::rocksdb_t;
-        let cf_map = Arc::new(RwLock::new(BTreeMap::new()));
+    if let Err(e) = fs::create_dir_all(&path) {
+        return Err(Error::new(format!(
+            "Failed to create RocksDB directory: `{:?}`.",
+            e
+        )));
+    }
 
-        if cfs.is_empty() {
-            unsafe {
-                db = ffi_try!(ffi::rocksdb_open(opts.inner, cpath.as_ptr() as *const _,));
-            }
-        } else {
-            let mut cfs_v = cfs;
-            // Always open the default column family.
-            if !cfs_v.iter().any(|cf| cf.name == "default") {
-                cfs_v.push(ColumnFamilyDescriptor {
-                    name: String::from("default"),
-                    options: Options::default(),
-                });
-            }
-            // We need to store our CStrings in an intermediate vector
-            // so that their pointers remain valid.
-            let c_cfs: Vec<CString> = cfs_v
+    let db: *mut ffi::rocksdb_t;
+    let cf_map = Arc::new(RwLock::new(BTreeMap::new()));
+
+    if cfs.is_empty() {
+        unsafe {
+            db = ffi_try!(ffi::rocksdb_open(opts.inner, cpath.as_ptr() as *const _,));
+        }
+    } else {
+        let mut cfs_v = cfs;
+        // Always open the default column family.
+        if !cfs_v.iter().any(|cf| cf.name == "default") {
+            cfs_v.push(ColumnFamilyDescriptor {
+                name: String::from("default"),
+                options: Options::default(),
+            });
+        }
+        // We need to store our CStrings in an intermediate vector
+        // so that their pointers remain valid.
+        let c_cfs: Vec<CString> = cfs_v
                 .iter()
                 .map(|cf| CString::new(cf.name.as_bytes()).unwrap())
                 .collect();
@@ -1416,6 +1416,47 @@ impl DB {
                 opt_bytes_to_ptr(end),
                 end.map_or(0, |e| e.len()) as size_t,
             );
+        }
+    }
+
+    pub fn compact_files_cf(
+        &self,
+        opts: CompactOptions,
+        cf: ColumnFamily,
+        input_files: &[&str], output_level: i32, output_path_id: i32) {
+
+        let mut c_ifs: Vec<*const c_char> = input_files
+                .iter()
+                .map(|f| CString::new(f.as_bytes()).unwrap().as_ptr())
+                .collect();
+        unsafe {
+            ffi::rocksdb_compact_files_cf(
+                self.inner,
+                opts.inner,
+                cf.inner,
+                c_ifs.as_mut_ptr(),
+                c_ifs.len() as i32,
+                output_level,
+                output_path_id);
+        }
+    }
+
+    pub fn compact_files(
+        &self,
+        opts: CompactOptions,
+        input_files: Vec<&str>, output_level: i32, output_path_id: i32) {
+        let mut c_ifs: Vec<*const c_char> = input_files
+                .iter()
+                .map(|f| CString::new(f.as_bytes()).unwrap().as_ptr())
+                .collect();
+        unsafe {
+            ffi::rocksdb_compact_files(
+                self.inner,
+                opts.inner,
+                c_ifs.as_mut_ptr(),
+                c_ifs.len() as i32,
+                output_level,
+                output_path_id);
         }
     }
 

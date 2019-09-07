@@ -252,6 +252,9 @@ pub struct FlushOptions {
     inner: *mut ffi::rocksdb_flushoptions_t,
 }
 
+pub struct CompactOptions {
+    inner: *mut ffi::rocksdb_compactfilesoptions_t,
+}
 /// Optionally disable WAL or sync for this write.
 ///
 /// # Examples
