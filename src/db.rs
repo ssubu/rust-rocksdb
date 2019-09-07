@@ -1423,18 +1423,20 @@ impl DB {
         &self,
         opts: CompactOptions,
         cf: ColumnFamily,
-        input_files: &[&str], output_level: i32, output_path_id: i32) {
+        input_files: Vec<&str>, output_level: i32, output_path_id: i32) {
 
-        let mut c_ifs: Vec<*const c_char> = input_files
+        let c_ifs: Vec<CString> = input_files
                 .iter()
-                .map(|f| CString::new(f.as_bytes()).unwrap().as_ptr())
+                .map(|f| CString::new(f.as_bytes()).unwrap())
                 .collect();
+
+        let mut cnames: Vec<*const c_char> = c_ifs.iter().map(|c| c.as_ptr()).collect();
         unsafe {
             ffi::rocksdb_compact_files_cf(
                 self.inner,
                 opts.inner,
                 cf.inner,
-                c_ifs.as_mut_ptr(),
+                cnames.as_mut_ptr(),
                 c_ifs.len() as i32,
                 output_level,
                 output_path_id);
