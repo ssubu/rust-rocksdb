@@ -26,19 +26,18 @@ use merge_operator::{
 };
 use slice_transform::SliceTransform;
 use {
-    BlockBasedIndexType, BlockBasedOptions, DBCompactionStyle, DBCompressionType, DBRecoveryMode,
+    BlockBasedIndexType, BlockBasedOptions, Cache, DBCompactionStyle, DBCompressionType, DBRecoveryMode,
     FlushOptions, MemtableFactory, Options, PlainTableFactoryOptions, WriteOptions, CompactOptions
 };
 
-pub fn new_cache(capacity: size_t) -> *mut ffi::rocksdb_cache_t {
-    unsafe { ffi::rocksdb_cache_create_lru(capacity) }
-}
+
 
 // Safety note: auto-implementing Send on most db-related types is prevented by the inner FFI
 // pointer. In most cases, however, this pointer is Send-safe because it is never aliased and
 // rocksdb internally does not rely on thread-local information for its user-exposed types.
 unsafe impl Send for Options {}
 unsafe impl Send for CompactOptions {}
+unsafe impl Send for Cache {}
 unsafe impl Send for WriteOptions {}
 unsafe impl Send for BlockBasedOptions {}
 // Sync is similarly safe for many types because they do not expose interior mutability, and their
@@ -47,6 +46,15 @@ unsafe impl Sync for Options {}
 unsafe impl Sync for CompactOptions {}
 unsafe impl Sync for WriteOptions {}
 unsafe impl Sync for BlockBasedOptions {}
+unsafe impl Sync for Cache {}
+
+impl Drop for Cache {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::rocksdb_cache_destroy(self.inner);
+        }
+    }
+}
 
 impl Drop for Options {
     fn drop(&mut self) {
@@ -120,6 +128,14 @@ impl CompactOptions {
     }
 }
 
+impl Cache {
+    pub fn new(capacity: size_t) -> Self {
+        Self {
+            inner: unsafe { ffi::rocksdb_cache_create_lru(capacity) },
+        }
+    }
+}
+
 impl BlockBasedOptions {
     pub fn set_block_size(&mut self, size: usize) {
         unsafe {
@@ -128,11 +144,19 @@ impl BlockBasedOptions {
     }
 
     pub fn set_lru_cache(&mut self, size: size_t) {
-        let cache = new_cache(size);
+        let cache = Cache::new(size);
         unsafe {
             // Since cache is wrapped in shared_ptr, we don't need to
             // call rocksdb_cache_destroy explicitly.
-            ffi::rocksdb_block_based_options_set_block_cache(self.inner, cache);
+            ffi::rocksdb_block_based_options_set_block_cache(self.inner, cache.inner);
+        }
+    }
+
+    pub fn set_lru_cache_with_cache(&mut self, cache: &Cache) {
+        unsafe {
+            // Since cache is wrapped in shared_ptr, we don't need to
+            // call rocksdb_cache_destroy explicitly.
+            ffi::rocksdb_block_based_options_set_block_cache(self.inner, cache.inner);
         }
     }
 

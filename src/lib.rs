@@ -191,6 +191,9 @@ pub struct PlainTableFactoryOptions {
     pub index_sparseness: usize,
 }
 
+pub struct Cache {
+    inner: *mut ffi::rocksdb_cache_t,
+}
 /// Database-wide options around performance and behavior.
 ///
 /// Please read [the official tuning guide](https://github.com/facebook/rocksdb/wiki/RocksDB-Tuning-Guide), and most importantly, measure performance under realistic workloads with realistic hardware.
