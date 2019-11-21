@@ -146,6 +146,7 @@ impl fmt::Display for Error {
 /// For configuring block-based file storage.
 pub struct BlockBasedOptions {
     inner: *mut ffi::rocksdb_block_based_table_options_t,
+    cache: Cache
 }
 
 /// Used by BlockBasedOptions::set_index_type.
@@ -191,6 +192,7 @@ pub struct PlainTableFactoryOptions {
     pub index_sparseness: usize,
 }
 
+#[derive(Copy, Clone)]
 pub struct Cache {
     inner: *mut ffi::rocksdb_cache_t,
 }
