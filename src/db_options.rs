@@ -48,14 +48,6 @@ unsafe impl Sync for WriteOptions {}
 unsafe impl Sync for BlockBasedOptions {}
 unsafe impl Sync for Cache {}
 
-impl Drop for Cache {
-    fn drop(&mut self) {
-        unsafe {
-            ffi::rocksdb_cache_destroy(self.inner);
-        }
-    }
-}
-
 impl Drop for Options {
     fn drop(&mut self) {
         unsafe {
@@ -137,6 +129,7 @@ impl Cache {
 }
 
 impl BlockBasedOptions {
+
     pub fn set_block_size(&mut self, size: usize) {
         unsafe {
             ffi::rocksdb_block_based_options_set_block_size(self.inner, size);
@@ -144,19 +137,20 @@ impl BlockBasedOptions {
     }
 
     pub fn set_lru_cache(&mut self, size: size_t) {
-        let cache = Cache::new(size);
+        self.cache = Cache::new(size);
         unsafe {
             // Since cache is wrapped in shared_ptr, we don't need to
             // call rocksdb_cache_destroy explicitly.
-            ffi::rocksdb_block_based_options_set_block_cache(self.inner, cache.inner);
+            ffi::rocksdb_block_based_options_set_block_cache(self.inner, self.cache.inner);
         }
     }
 
-    pub fn set_lru_cache_with_cache(&mut self, cache: &Cache) {
+    pub fn set_lru_cache_with_cache(&mut self, cache: Cache) {
+        self.cache = cache;
         unsafe {
             // Since cache is wrapped in shared_ptr, we don't need to
             // call rocksdb_cache_destroy explicitly.
-            ffi::rocksdb_block_based_options_set_block_cache(self.inner, cache.inner);
+            ffi::rocksdb_block_based_options_set_block_cache(self.inner, self.cache.inner);
         }
     }
 
@@ -216,7 +210,7 @@ impl Default for BlockBasedOptions {
         if block_opts.is_null() {
             panic!("Could not create RocksDB block based options");
         }
-        BlockBasedOptions { inner: block_opts }
+        BlockBasedOptions { inner: block_opts, cache: Cache::new(0) }
     }
 }
 
