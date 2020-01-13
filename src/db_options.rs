@@ -156,6 +156,12 @@ impl WriteBufferManager {
                 ffi::rocksdb_write_buffer_manager_should_flush(self.inner)
         }
     }
+
+    pub fn mutable_memory_usage(&self) -> usize {
+            unsafe {
+                ffi::rocksdb_write_buffer_manager_mutable_memtable_memory_usage(self.inner)
+        }
+    }
 }
 
 
