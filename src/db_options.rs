@@ -39,6 +39,7 @@ unsafe impl Send for Options {}
 unsafe impl Send for CompactOptions {}
 unsafe impl Send for Cache {}
 unsafe impl Send for WriteOptions {}
+unsafe impl Send for FlushOptions {}
 unsafe impl Send for WriteBufferManager {}
 unsafe impl Send for BlockBasedOptions {}
 // Sync is similarly safe for many types because they do not expose interior mutability, and their
@@ -46,6 +47,7 @@ unsafe impl Send for BlockBasedOptions {}
 unsafe impl Sync for Options {}
 unsafe impl Sync for CompactOptions {}
 unsafe impl Sync for WriteOptions {}
+unsafe impl Sync for FlushOptions {}
 unsafe impl Sync for BlockBasedOptions {}
 unsafe impl Sync for Cache {}
 unsafe impl Sync for WriteBufferManager {}
