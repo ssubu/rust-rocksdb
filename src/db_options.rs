@@ -148,6 +148,12 @@ impl WriteBufferManager {
                 ffi::rocksdb_write_buffer_manager_buffer_size(self.inner)
         }
     }
+
+    pub fn should_flush(&self) -> bool {
+            unsafe {
+                ffi::rocksdb_write_buffer_manager_should_flush(self.inner)
+        }
+    }
 }
 
 
@@ -335,7 +341,7 @@ impl Options {
 
     pub fn set_bottommost_compression_options(&mut self, window_bits: c_int, level: c_int, strategy: c_int, max_dict_bytes: c_int, zstd_max_train_bytes: c_int, enabled: bool) {
         unsafe {
-            ffi::rocksdb_options_set_bottommost_compression_options(self.inner, window_bits, level, strategy, max_dict_bytes, zstd_max_train_bytes, enabled as c_int);
+            ffi::rocksdb_options_set_bottommost_compression_options(self.inner, window_bits, level, strategy, max_dict_bytes, zstd_max_train_bytes, enabled);
         }
     }
 
