@@ -196,6 +196,11 @@ pub struct PlainTableFactoryOptions {
 pub struct Cache {
     inner: *mut ffi::rocksdb_cache_t,
 }
+
+#[derive(Copy, Clone)]
+pub struct WriteBufferManager {
+    inner: *mut ffi::rocksdb_write_buffer_manager_t,
+}
 /// Database-wide options around performance and behavior.
 ///
 /// Please read [the official tuning guide](https://github.com/facebook/rocksdb/wiki/RocksDB-Tuning-Guide), and most importantly, measure performance under realistic workloads with realistic hardware.
