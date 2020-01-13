@@ -136,6 +136,18 @@ impl WriteBufferManager {
             inner: unsafe {ffi::rocksdb_write_buffer_manager_create(capacity, cache.inner) },
         }
     }
+
+    pub fn memory_usage(&self) -> usize {
+            unsafe {
+                ffi::rocksdb_write_buffer_manager_memory_usage(self.inner)
+        }
+    }
+
+    pub fn buffer_size(&self) -> usize {
+            unsafe {
+                ffi::rocksdb_write_buffer_manager_buffer_size(self.inner)
+        }
+    }
 }
 
 
