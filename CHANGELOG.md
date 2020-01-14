@@ -2,13 +2,39 @@
 
 ## Unreleased
 
-### 0.12.3 (2019-07-19)
+* Updated lz4 to v1.9.2 (ordian)
+* BlockBasedOptions: expose `format_version`, `[index_]block_restart_interval` (ordian)
+
+## 0.13.0 (2019-11-12)
+
+### Changes
+
+* Added `ReadOptions::set_verify_checksums` and
+  `Options::set_level_compaction_dynamic_level_bytes` methods (ordian)
+* Array of bytes has been changed for pinnable slice for get operations (nbdd0121)
+* Implemented `Sync` for `DBRawIterator` (nbdd0121)
+* Removed extra copy in DBRawIterator (nbdd0121)
+* Added `Options::max_dict_bytes` and `Options::zstd_max_training_bytes` methods(methyl)
+* Added Android support (rtsisyk)
+* Added lifetimes for `DBIterator` return types (ngotchac)
+* Bumped rocksdb up to 6.2.4 (aleksuss)
+* Disabled trait derivation for librocksdb-sys (EyeOfPython)
+* Added `DB::get_updates_since()` to iterate write batches in a given sequence (nlfiedler)
+* Added `ReadOptions::set_tailing()` to create a tailing iterator that continues to
+  iterate over the database as new records are added (cjbradfield)
+* Changed column families storing (aleksuss)
+* Exposed the `status` method on iterators (rnarubin)
+
+## 0.12.3 (2019-07-19)
+
+### Changes
 
 * Enabled sse4.2/pclmul for accelerated crc32c (yjh0502)
 * Added `set_db_write_buffer_size` to the Options API (rnarubin)
 * Bumped RocksDB to 6.1.2 (lispy)
 * Added `Sync` and `Send` implementations to `Snapshot` (pavel-mukhanov)
 * Added `raw_iterator_cf_opt` to the DB API (rnarubin)
+* Added `DB::latest_sequence_number` method (vitvakatu)
 
 ## 0.12.2 (2019-05-03)
 

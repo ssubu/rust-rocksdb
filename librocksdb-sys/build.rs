@@ -33,6 +33,7 @@ fn fail_on_empty_directory(name: &str) {
 fn bindgen_rocksdb() {
     let bindings = bindgen::Builder::default()
         .header("rocksdb/include/rocksdb/c.h")
+        .derive_debug(false)
         .blacklist_type("max_align_t") // https://github.com/rust-lang-nursery/rust-bindgen/issues/550
         .ctypes_prefix("libc")
         .generate()
@@ -82,7 +83,9 @@ fn build_rocksdb() {
     config.define("NDEBUG", Some("1"));
 
     let mut lib_sources = include_str!("rocksdb_lib_sources.txt")
-        .split(" ")
+        .trim()
+        .split("\n")
+        .map(str::trim)
         .collect::<Vec<&'static str>>();
 
     // We have a pregenerated a version of build_version.cc in the local directory
@@ -98,34 +101,40 @@ fn build_rocksdb() {
         // (about 2011).
         config.define("HAVE_PCLMUL", Some("1"));
         config.define("HAVE_SSE42", Some("1"));
-        config.flag("-msse2");
-        config.flag("-msse4.1");
-        config.flag("-msse4.2");
-        config.flag("-mpclmul");
+        config.flag_if_supported("-msse2");
+        config.flag_if_supported("-msse4.1");
+        config.flag_if_supported("-msse4.2");
+        config.flag_if_supported("-mpclmul");
     }
 
     if target.contains("darwin") {
         config.define("OS_MACOSX", Some("1"));
         config.define("ROCKSDB_PLATFORM_POSIX", Some("1"));
         config.define("ROCKSDB_LIB_IO_POSIX", Some("1"));
-    }
-    if target.contains("linux") {
+    } else if target.contains("android") {
+        config.define("OS_ANDROID", Some("1"));
+        config.define("ROCKSDB_PLATFORM_POSIX", Some("1"));
+        config.define("ROCKSDB_LIB_IO_POSIX", Some("1"));
+    } else if target.contains("linux") {
         config.define("OS_LINUX", Some("1"));
         config.define("ROCKSDB_PLATFORM_POSIX", Some("1"));
         config.define("ROCKSDB_LIB_IO_POSIX", Some("1"));
-        // COMMON_FLAGS="$COMMON_FLAGS -fno-builtin-memcmp"
-    }
-    if target.contains("freebsd") {
+    } else if target.contains("freebsd") {
         config.define("OS_FREEBSD", Some("1"));
         config.define("ROCKSDB_PLATFORM_POSIX", Some("1"));
         config.define("ROCKSDB_LIB_IO_POSIX", Some("1"));
-    }
-
-    if target.contains("windows") {
+    } else if target.contains("windows") {
         link("rpcrt4", false);
         link("shlwapi", false);
         config.define("OS_WIN", Some("1"));
         config.define("ROCKSDB_WINDOWS_UTF8_FILENAMES", Some("1"));
+        if &target == "x86_64-pc-windows-gnu" {
+            // Tell MinGW to create localtime_r wrapper of localtime_s function.
+            config.define("_POSIX_C_SOURCE", None);
+            // Tell MinGW to use at least Windows Vista headers instead of the ones of Windows XP.
+            // (This is minimum supported version of rocksdb)
+            config.define("_WIN32_WINNT", Some("0x0600"));
+        }
 
         // Remove POSIX-specific sources
         lib_sources = lib_sources

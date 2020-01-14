@@ -25,7 +25,7 @@
 //!    let db = DB::open_default(path).unwrap();
 //!    db.put(b"my key", b"my value").unwrap();
 //!    match db.get(b"my key") {
-//!        Ok(Some(value)) => println!("retrieved value {}", value.to_utf8().unwrap()),
+//!        Ok(Some(value)) => println!("retrieved value {}", String::from_utf8(value).unwrap()),
 //!        Ok(None) => println!("value not found"),
 //!        Err(e) => println!("operational problem encountered: {}", e),
 //!    }
@@ -72,7 +72,8 @@ mod slice_transform;
 pub use compaction_filter::Decision as CompactionDecision;
 pub use db::{
     DBCompactionStyle, DBCompressionType, DBIterator, DBPinnableSlice, DBRawIterator,
-    DBRecoveryMode, DBVector, Direction, IteratorMode, ReadOptions, Snapshot, WriteBatch,
+    DBRecoveryMode, DBWALIterator, Direction, IteratorMode, ReadOptions, Snapshot, WriteBatch,
+    WriteBatchIterator,
 };
 
 pub use slice_transform::SliceTransform;
@@ -81,16 +82,14 @@ pub use merge_operator::MergeOperands;
 use std::collections::BTreeMap;
 use std::error;
 use std::fmt;
-use std::marker::PhantomData;
 use std::path::PathBuf;
-use std::sync::{Arc, RwLock};
 
 /// A RocksDB database.
 ///
 /// See crate level documentation for a simple usage example.
 pub struct DB {
     inner: *mut ffi::rocksdb_t,
-    cfs: Arc<RwLock<BTreeMap<String, *mut ffi::rocksdb_column_family_handle_t>>>,
+    cfs: BTreeMap<String, ColumnFamily>,
     path: PathBuf,
 }
 
@@ -296,13 +295,11 @@ pub struct WriteOptions {
 
 /// An opaque type used to represent a column family. Returned from some functions, and used
 /// in others
-#[derive(Copy, Clone)]
-pub struct ColumnFamily<'a> {
+pub struct ColumnFamily {
     inner: *mut ffi::rocksdb_column_family_handle_t,
-    db: PhantomData<&'a DB>,
 }
 
-unsafe impl<'a> Send for ColumnFamily<'a> {}
+unsafe impl Send for ColumnFamily {}
 
 #[cfg(test)]
 mod test {
@@ -347,5 +344,4 @@ mod test {
         is_sync::<PlainTableFactoryOptions>();
         is_sync::<ColumnFamilyDescriptor>();
     }
-
 }

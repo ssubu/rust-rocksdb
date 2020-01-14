@@ -16,7 +16,7 @@ use std::ffi::{CStr, CString};
 use std::mem;
 use std::path::Path;
 
-use libc::{self, c_int, c_uchar, c_uint, c_void, size_t, uint64_t};
+use libc::{self, c_int, c_uchar, c_uint, c_void, size_t};
 
 use compaction_filter::{self, filter_callback, CompactionFilterCallback, CompactionFilterFn};
 use comparator::{self, ComparatorCallback, CompareFn};
@@ -29,7 +29,6 @@ use {
     BlockBasedIndexType, BlockBasedOptions, Cache, DBCompactionStyle, DBCompressionType, DBRecoveryMode,
     FlushOptions, MemtableFactory, Options, PlainTableFactoryOptions, WriteOptions, WriteBufferManager, CompactOptions
 };
-
 
 
 // Safety note: auto-implementing Send on most db-related types is prevented by the inner FFI
@@ -239,6 +238,55 @@ impl BlockBasedOptions {
             ffi::rocksdb_block_based_options_set_index_type(self.inner, index);
         }
     }
+
+    /// If cache_index_and_filter_blocks is true and the below is true, then
+    /// filter and index blocks are stored in the cache, but a reference is
+    /// held in the "table reader" object so the blocks are pinned and only
+    /// evicted from cache when the table reader is freed.
+    ///
+    /// Default: false.
+    pub fn set_pin_l0_filter_and_index_blocks_in_cache(&mut self, v: bool) {
+        unsafe {
+            ffi::rocksdb_block_based_options_set_pin_l0_filter_and_index_blocks_in_cache(
+                self.inner,
+                v as c_uchar,
+            );
+        }
+    }
+
+    /// Format version, reserved for backward compatibility.
+    /// See https://github.com/facebook/rocksdb/blob/f059c7d9b96300091e07429a60f4ad55dac84859/include/rocksdb/table.h#L249-L274.
+    ///
+    /// Default: 2.
+    pub fn set_format_version(&mut self, version: i32) {
+        unsafe {
+            ffi::rocksdb_block_based_options_set_format_version(self.inner, version);
+        }
+    }
+
+    /// Number of keys between restart points for delta encoding of keys.
+    /// This parameter can be changed dynamically. Most clients should
+    /// leave this parameter alone. The minimum value allowed is 1. Any smaller
+    /// value will be silently overwritten with 1.
+    ///
+    /// Default: 16.
+    pub fn set_block_restart_interval(&mut self, interval: i32) {
+        unsafe {
+            ffi::rocksdb_block_based_options_set_block_restart_interval(self.inner, interval);
+        }
+    }
+
+    /// Same as block_restart_interval but used for the index block.
+    /// If you don't plan to run RocksDB before version 5.16 and you are
+    /// using `index_block_restart_interval` > 1, you should
+    /// probably set the `format_version` to >= 4 as it would reduce the index size.
+    ///
+    /// Default: 1.
+    pub fn set_index_block_restart_interval(&mut self, interval: i32) {
+        unsafe {
+            ffi::rocksdb_block_based_options_set_index_block_restart_interval(self.inner, interval);
+        }
+    }
 }
 
 impl Default for BlockBasedOptions {
@@ -276,7 +324,7 @@ impl Options {
         unsafe {
             ffi::rocksdb_options_optimize_level_style_compaction(
                 self.inner,
-                memtable_memory_budget as uint64_t,
+                memtable_memory_budget as u64,
             );
         }
     }
@@ -354,12 +402,6 @@ impl Options {
     }
 
 
-    pub fn set_compression_options(&mut self, window_bits: c_int, level: c_int, strategy: c_int, max_dict_bytes: c_int) {
-        unsafe {
-            ffi::rocksdb_options_set_compression_options(self.inner, window_bits, level, strategy, max_dict_bytes);
-        }
-    }
-
     /// Different levels can have different compression policies. There
     /// are cases where most lower levels would like to use quick compression
     /// algorithms while the higher levels (which have more data) use
@@ -393,6 +435,49 @@ impl Options {
         }
     }
 
+    /// Maximum size of dictionaries used to prime the compression library.
+    /// Enabling dictionary can improve compression ratios when there are
+    /// repetitions across data blocks.
+    ///
+    /// The dictionary is created by sampling the SST file data. If
+    /// `zstd_max_train_bytes` is nonzero, the samples are passed through zstd's
+    /// dictionary generator. Otherwise, the random samples are used directly as
+    /// the dictionary.
+    ///
+    /// When compression dictionary is disabled, we compress and write each block
+    /// before buffering data for the next one. When compression dictionary is
+    /// enabled, we buffer all SST file data in-memory so we can sample it, as data
+    /// can only be compressed and written after the dictionary has been finalized.
+    /// So users of this feature may see increased memory usage.
+    ///
+    /// Default: `0`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rocksdb::Options;
+    ///
+    /// let mut opts = Options::default();
+    /// opts.set_compression_options(4, 5, 6, 7);
+    /// ```
+    pub fn set_compression_options(
+        &mut self,
+        w_bits: c_int,
+        level: c_int,
+        strategy: c_int,
+        max_dict_bytes: c_int,
+    ) {
+        unsafe {
+            ffi::rocksdb_options_set_compression_options(
+                self.inner,
+                w_bits,
+                level,
+                strategy,
+                max_dict_bytes,
+            );
+        }
+    }
+
     /// If non-zero, we perform bigger reads when doing compaction. If you're
     /// running RocksDB on spinning disks, you should set this to at least 2MB.
     /// That way RocksDB's compaction is doing sequential instead of random reads.
@@ -407,6 +492,17 @@ impl Options {
                 self.inner,
                 compaction_readahead_size as usize,
             );
+        }
+    }
+
+    /// Allow RocksDB to pick dynamic base of bytes for levels.
+    /// With this feature turned on, RocksDB will automatically adjust max bytes for each level.
+    /// The goal of this feature is to have lower bound on size amplification.
+    ///
+    /// Default: false.
+    pub fn set_level_compaction_dynamic_level_bytes(&mut self, v: bool) {
+        unsafe {
+            ffi::rocksdb_options_set_level_compaction_dynamic_level_bytes(self.inner, v as c_uchar);
         }
     }
 
@@ -511,6 +607,27 @@ impl Options {
     pub fn optimize_for_point_lookup(&mut self, cache_size: u64) {
         unsafe {
             ffi::rocksdb_options_optimize_for_point_lookup(self.inner, cache_size);
+        }
+    }
+
+    /// Sets the optimize_filters_for_hits flag
+    ///
+    /// Default: `false`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rocksdb::Options;
+    ///
+    /// let mut opts = Options::default();
+    /// opts.set_optimize_filters_for_hits(true);
+    /// ```
+    pub fn set_optimize_filters_for_hits(&mut self, optimize_for_hits: bool) {
+        unsafe {
+            ffi::rocksdb_options_set_optimize_filters_for_hits(
+                self.inner,
+                optimize_for_hits as c_int,
+            );
         }
     }
 
@@ -1189,6 +1306,27 @@ impl Options {
         }
     }
 
+    /// Once write-ahead logs exceed this size, we will start forcing the flush of
+    /// column families whose memtables are backed by the oldest live WAL file
+    /// (i.e. the ones that are causing all the space amplification).
+    ///
+    /// Default: `0`
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rocksdb::Options;
+    ///
+    /// let mut opts = Options::default();
+    /// // Set max total wal size to 1G.
+    /// opts.set_max_total_wal_size(1 << 30);
+    /// ```
+    pub fn set_max_total_wal_size(&mut self, size: u64) {
+        unsafe {
+            ffi::rocksdb_options_set_max_total_wal_size(self.inner, size);
+        }
+    }
+
     /// Recovery mode to control the consistency while replaying WAL.
     ///
     /// Default: DBRecoveryMode::PointInTime
@@ -1354,6 +1492,35 @@ impl Options {
     pub fn set_allow_mmap_reads(&mut self, is_enabled: bool) {
         unsafe {
             ffi::rocksdb_options_set_allow_mmap_reads(self.inner, is_enabled as c_uchar);
+        }
+    }
+
+    /// Use to control write rate of flush and compaction. Flush has higher
+    /// priority than compaction.
+    /// If rate limiter is enabled, bytes_per_sync is set to 1MB by default.
+    ///
+    /// Default: disable
+    ///
+    /// # Example
+    ///
+    /// ```
+    /// use rocksdb::Options;
+    ///
+    /// let mut options = Options::default();
+    /// options.set_ratelimiter(1024 * 1024, 100 * 1000, 10);
+    /// ```
+    pub fn set_ratelimiter(
+        &mut self,
+        rate_bytes_per_sec: i64,
+        refill_period_us: i64,
+        fairness: i32,
+    ) {
+        unsafe {
+            let ratelimiter =
+                ffi::rocksdb_ratelimiter_create(rate_bytes_per_sec, refill_period_us, fairness);
+            // Since limiter is wrapped in shared_ptr, we don't need to
+            // call rocksdb_ratelimiter_destroy explicitly.
+            ffi::rocksdb_options_set_ratelimiter(self.inner, ratelimiter);
         }
     }
 }

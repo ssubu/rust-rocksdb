@@ -17,22 +17,10 @@ extern crate rocksdb;
 
 mod util;
 
-use libc::size_t;
-
-use rocksdb::{DBVector, Error, IteratorMode, Options, Snapshot, WriteBatch, DB};
+use rocksdb::{Error, IteratorMode, Options, Snapshot, WriteBatch, DB};
 use std::sync::Arc;
 use std::{mem, thread};
 use util::DBPath;
-
-#[test]
-fn test_db_vector() {
-    use std::mem;
-    let len: size_t = 4;
-    let data: *mut u8 = unsafe { libc::calloc(len, mem::size_of::<u8>()) as *mut u8 };
-    let v = unsafe { DBVector::from_c(data, len) };
-    let ctrl = [0u8, 0, 0, 0];
-    assert_eq!(&*v, &ctrl[..]);
-}
 
 #[test]
 fn external() {
@@ -43,9 +31,9 @@ fn external() {
 
         assert!(db.put(b"k1", b"v1111").is_ok());
 
-        let r: Result<Option<DBVector>, Error> = db.get(b"k1");
+        let r: Result<Option<Vec<u8>>, Error> = db.get(b"k1");
 
-        assert!(r.unwrap().unwrap().to_utf8().unwrap() == "v1111");
+        assert_eq!(r.unwrap().unwrap(), b"v1111");
         assert!(db.delete(b"k1").is_ok());
         assert!(db.get(b"k1").unwrap().is_none());
     }
@@ -60,7 +48,7 @@ fn db_vector_as_ref_byte_slice() {
 
         assert!(db.put(b"k1", b"v1111").is_ok());
 
-        let r: Result<Option<DBVector>, Error> = db.get(b"k1");
+        let r: Result<Option<Vec<u8>>, Error> = db.get(b"k1");
         let vector = r.unwrap().unwrap();
 
         assert!(get_byte_slice(&vector) == b"v1111");
@@ -104,8 +92,8 @@ fn writebatch_works() {
             assert!(!batch.is_empty());
             assert!(db.get(b"k1").unwrap().is_none());
             assert!(db.write(batch).is_ok());
-            let r: Result<Option<DBVector>, Error> = db.get(b"k1");
-            assert!(r.unwrap().unwrap().to_utf8().unwrap() == "v1111");
+            let r: Result<Option<Vec<u8>>, Error> = db.get(b"k1");
+            assert_eq!(r.unwrap().unwrap(), b"v1111");
         }
         {
             // test delete
@@ -156,7 +144,7 @@ fn snapshot_test() {
         assert!(db.put(b"k1", b"v1111").is_ok());
 
         let snap = db.snapshot();
-        assert!(snap.get(b"k1").unwrap().unwrap().to_utf8().unwrap() == "v1111");
+        assert_eq!(snap.get(b"k1").unwrap().unwrap(), b"v1111");
 
         assert!(db.put(b"k2", b"v2222").is_ok());
 
@@ -177,11 +165,11 @@ impl SnapshotWrapper {
         }
     }
 
-    fn check<K>(&self, key: K, value: &str) -> bool
+    fn check<K>(&self, key: K, value: &[u8]) -> bool
     where
         K: AsRef<[u8]>,
     {
-        self.snapshot.get(key).unwrap().unwrap().to_utf8().unwrap() == value
+        self.snapshot.get(key).unwrap().unwrap() == value
     }
 }
 
@@ -195,10 +183,10 @@ fn sync_snapshot_test() {
 
     let wrapper = SnapshotWrapper::new(&db);
     let wrapper_1 = wrapper.clone();
-    let handler_1 = thread::spawn(move || wrapper_1.check("k1", "v1"));
+    let handler_1 = thread::spawn(move || wrapper_1.check("k1", b"v1"));
 
     let wrapper_2 = wrapper.clone();
-    let handler_2 = thread::spawn(move || wrapper_2.check("k2", "v2"));
+    let handler_2 = thread::spawn(move || wrapper_2.check("k2", b"v2"));
 
     assert!(handler_1.join().unwrap());
     assert!(handler_2.join().unwrap());
@@ -239,4 +227,116 @@ fn set_option_test() {
         ];
         db.set_options(&multiple_options).unwrap();
     }
+}
+
+#[test]
+fn test_sequence_number() {
+    let path = DBPath::new("_rust_rocksdb_test_sequence_number");
+    {
+        let db = DB::open_default(&path).unwrap();
+        assert_eq!(db.latest_sequence_number(), 0);
+        let _ = db.put(b"key", b"value");
+        assert_eq!(db.latest_sequence_number(), 1);
+    }
+}
+
+struct OperationCounts {
+    puts: usize,
+    deletes: usize,
+}
+
+impl rocksdb::WriteBatchIterator for OperationCounts {
+    fn put(&mut self, _key: Box<[u8]>, _value: Box<[u8]>) {
+        self.puts += 1;
+    }
+    fn delete(&mut self, _key: Box<[u8]>) {
+        self.deletes += 1;
+    }
+}
+
+#[test]
+fn test_get_updates_since_empty() {
+    let path = DBPath::new("_rust_rocksdb_test_get_updates_since_empty");
+    let db = DB::open_default(&path).unwrap();
+    // get_updates_since() on an empty database
+    let mut iter = db.get_updates_since(0).unwrap();
+    assert!(iter.next().is_none());
+}
+
+#[test]
+fn test_get_updates_since_multiple_batches() {
+    let path = DBPath::new("_rust_rocksdb_test_get_updates_since_multiple_batches");
+    let db = DB::open_default(&path).unwrap();
+    // add some records and collect sequence numbers,
+    // verify 3 batches of 1 put each were done
+    db.put(b"key1", b"value1").unwrap();
+    let seq1 = db.latest_sequence_number();
+    db.put(b"key2", b"value2").unwrap();
+    db.put(b"key3", b"value3").unwrap();
+    db.put(b"key4", b"value4").unwrap();
+    let mut iter = db.get_updates_since(seq1).unwrap();
+    let mut counts = OperationCounts {
+        puts: 0,
+        deletes: 0,
+    };
+    let (seq, batch) = iter.next().unwrap();
+    assert_eq!(seq, 2);
+    batch.iterate(&mut counts);
+    let (seq, batch) = iter.next().unwrap();
+    assert_eq!(seq, 3);
+    batch.iterate(&mut counts);
+    let (seq, batch) = iter.next().unwrap();
+    assert_eq!(seq, 4);
+    batch.iterate(&mut counts);
+    assert!(iter.next().is_none());
+    assert_eq!(counts.puts, 3);
+    assert_eq!(counts.deletes, 0);
+}
+
+#[test]
+fn test_get_updates_since_one_batch() {
+    let path = DBPath::new("_rust_rocksdb_test_get_updates_since_one_batch");
+    let db = DB::open_default(&path).unwrap();
+    db.put(b"key2", b"value2").unwrap();
+    // some puts and deletes in a single batch,
+    // verify 1 put and 1 delete were done
+    let seq1 = db.latest_sequence_number();
+    assert_eq!(seq1, 1);
+    let mut batch = WriteBatch::default();
+    batch.put(b"key1", b"value1").unwrap();
+    batch.delete(b"key2").unwrap();
+    db.write(batch).unwrap();
+    assert_eq!(db.latest_sequence_number(), 3);
+    let mut iter = db.get_updates_since(seq1).unwrap();
+    let mut counts = OperationCounts {
+        puts: 0,
+        deletes: 0,
+    };
+    let (seq, batch) = iter.next().unwrap();
+    assert_eq!(seq, 2);
+    batch.iterate(&mut counts);
+    assert!(iter.next().is_none());
+    assert_eq!(counts.puts, 1);
+    assert_eq!(counts.deletes, 1);
+}
+
+#[test]
+fn test_get_updates_since_nothing() {
+    let path = DBPath::new("_rust_rocksdb_test_get_updates_since_nothing");
+    let db = DB::open_default(&path).unwrap();
+    // get_updates_since() with no new changes
+    db.put(b"key1", b"value1").unwrap();
+    let seq1 = db.latest_sequence_number();
+    let mut iter = db.get_updates_since(seq1).unwrap();
+    assert!(iter.next().is_none());
+}
+
+#[test]
+fn test_get_updates_since_out_of_range() {
+    let path = DBPath::new("_rust_rocksdb_test_get_updates_since_out_of_range");
+    let db = DB::open_default(&path).unwrap();
+    db.put(b"key1", b"value1").unwrap();
+    // get_updates_since() with an out of bounds sequence number
+    let result = db.get_updates_since(1000);
+    assert!(result.is_err());
 }
