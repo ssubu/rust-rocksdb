@@ -1523,6 +1523,14 @@ impl Options {
             ffi::rocksdb_options_set_ratelimiter(self.inner, ratelimiter);
         }
     }
+
+    pub fn set_inplace_update_support(&mut self, v: bool) {
+        unsafe {
+            ffi::rocksdb_options_set_inplace_update_support(self.inner, v as u8);
+        }
+    }
+
+
 }
 
 impl Default for Options {
