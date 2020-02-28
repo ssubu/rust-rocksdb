@@ -672,6 +672,10 @@ impl Options {
         unsafe { ffi::rocksdb_options_set_use_fsync(self.inner, useit as c_int) }
     }
 
+    pub fn set_enable_pipelined_write(&mut self, enable: bool) {
+        unsafe { ffi::rocksdb_options_set_enable_pipelined_write(self.inner, enable as c_uchar) }
+    }
+
     /// Allows OS to incrementally sync files to disk while they are being
     /// written, asynchronously, in the background. This operation can be used
     /// to smooth out write I/Os over time. Users shouldn't rely on it for
