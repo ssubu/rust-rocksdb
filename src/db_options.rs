@@ -672,6 +672,10 @@ impl Options {
         unsafe { ffi::rocksdb_options_set_use_fsync(self.inner, useit as c_int) }
     }
 
+    pub fn set_enable_pipelined_write(&mut self, enable: bool) {
+        unsafe { ffi::rocksdb_options_set_enable_pipelined_write(self.inner, enable as c_uchar) }
+    }
+
     /// Allows OS to incrementally sync files to disk while they are being
     /// written, asynchronously, in the background. This operation can be used
     /// to smooth out write I/Os over time. Users shouldn't rely on it for
@@ -1164,6 +1168,21 @@ impl Options {
         }
     }
 
+    pub fn set_soft_pending_compaction_bytes_limit(&mut self, n: usize) {
+        unsafe {
+            ffi::rocksdb_options_set_soft_pending_compaction_bytes_limit(self.inner, n);
+        }
+    }
+
+
+    pub fn set_hard_pending_compaction_bytes_limit(&mut self, n: usize) {
+        unsafe {
+            ffi::rocksdb_options_set_hard_pending_compaction_bytes_limit(self.inner, n);
+        }
+    }
+
+
+
     /// Sets the maximum number of concurrent background memtable flush jobs, submitted to
     /// the HIGH priority thread pool.
     ///
@@ -1523,6 +1542,14 @@ impl Options {
             ffi::rocksdb_options_set_ratelimiter(self.inner, ratelimiter);
         }
     }
+
+    pub fn set_inplace_update_support(&mut self, v: bool) {
+        unsafe {
+            ffi::rocksdb_options_set_inplace_update_support(self.inner, v as u8);
+        }
+    }
+
+
 }
 
 impl Default for Options {
