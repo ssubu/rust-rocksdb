@@ -1168,6 +1168,21 @@ impl Options {
         }
     }
 
+    pub fn set_soft_pending_compaction_bytes_limit(&mut self, n: usize) {
+        unsafe {
+            ffi::rocksdb_options_set_soft_pending_compaction_bytes_limit(self.inner, n);
+        }
+    }
+
+
+    pub fn set_hard_pending_compaction_bytes_limit(&mut self, n: usize) {
+        unsafe {
+            ffi::rocksdb_options_set_hard_pending_compaction_bytes_limit(self.inner, n);
+        }
+    }
+
+
+
     /// Sets the maximum number of concurrent background memtable flush jobs, submitted to
     /// the HIGH priority thread pool.
     ///
