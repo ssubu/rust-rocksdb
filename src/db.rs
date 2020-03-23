@@ -83,6 +83,8 @@ pub struct WriteBatch {
     inner: *mut ffi::rocksdb_writebatch_t,
 }
 
+unsafe impl Send for WriteBatch {}
+
 pub struct ReadOptions {
     inner: *mut ffi::rocksdb_readoptions_t,
 }
