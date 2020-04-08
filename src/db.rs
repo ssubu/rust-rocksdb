@@ -801,6 +801,82 @@ impl BlobDB {
             path: path.as_ref().to_path_buf(),
         })
     }
+
+    pub fn write_opt(&self, batch: WriteBatch, writeopts: &WriteOptions) -> Result<(), Error> {
+        unsafe {
+            ffi_try!(ffi::rocksdb_blob_write(self.inner, writeopts.inner, batch.inner));
+        }
+        Ok(())
+    }
+
+    pub fn write(&self, batch: WriteBatch) -> Result<(), Error> {
+        self.write_opt(batch, &WriteOptions::default())
+    }
+
+    pub fn put_cf_opt<K, V>(
+        &self,
+        cf: &ColumnFamily,
+        key: K,
+        value: V,
+        writeopts: &WriteOptions,
+    ) -> Result<(), Error>
+    where
+        K: AsRef<[u8]>,
+        V: AsRef<[u8]>,
+    {
+        let key = key.as_ref();
+        let value = value.as_ref();
+
+        unsafe {
+            ffi_try!(ffi::rocksdb_blob_put_cf(
+                self.inner,
+                writeopts.inner,
+                cf.inner,
+                key.as_ptr() as *const c_char,
+                key.len() as size_t,
+                value.as_ptr() as *const c_char,
+                value.len() as size_t,
+            ));
+            Ok(())
+        }
+    }
+
+    pub fn delete_cf_opt<K: AsRef<[u8]>>(
+        &self,
+        cf: &ColumnFamily,
+        key: K,
+        writeopts: &WriteOptions,
+    ) -> Result<(), Error> {
+        let key = key.as_ref();
+
+        unsafe {
+            ffi_try!(ffi::rocksdb_blob_delete_cf(
+                self.inner,
+                writeopts.inner,
+                cf.inner,
+                key.as_ptr() as *const c_char,
+                key.len() as size_t,
+            ));
+            Ok(())
+        }
+    }
+
+    // pub fn get_cf_opt<K: AsRef<[u8]>>(
+    //     &self,
+    //     cf: &ColumnFamily,
+    //     key: K,
+    //     readopts: &ReadOptions,
+    // ) -> Result<Option<Vec<u8>>, Error> {
+    //     let key = key.as_ref();
+    //     unsafe {
+    //         ffi_try!(ffi::rocksdb_blob_get_cf(self.inner, readopts.inner, cf.inner,
+    //             key.as_ptr() as *const c_char,
+    //             key.len() as size_t,
+
+
+    //     }
+    // }
+
 }
 impl DB {
     /// Open a database with default options.
