@@ -16,8 +16,8 @@
 use ffi;
 use ffi_util::opt_bytes_to_ptr;
 use {
-    ColumnFamily, ColumnFamilyDescriptor, CompactOptions, Error, FlushOptions, Options,
-    WriteOptions, DB,
+    BlobDB, BlobOptions, ColumnFamily, ColumnFamilyDescriptor, CompactOptions, Error, FlushOptions,
+    Options, WriteOptions, DB,
 };
 
 use libc::{self, c_char, c_int, c_uchar, c_void, size_t};
@@ -754,6 +754,54 @@ impl ColumnFamilyDescriptor {
     }
 }
 
+impl Drop for BlobDB {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::rocksdb_blob_close(self.inner);
+        }
+    }
+}
+
+impl BlobDB {
+    pub fn open_default<P: AsRef<Path>>(path: P) -> Result<BlobDB, Error> {
+        let mut opts = Options::default();
+        let mut blob_opts = BlobOptions::default();
+        BlobDB::open(&opts, &blob_opts, path)
+    }
+
+    pub fn open<P>(opts: &Options, blob_opts: &BlobOptions, path: P) -> Result<BlobDB, Error>
+    where
+        P: AsRef<Path>,
+    {
+        let cpath = to_cpath(&path)?;
+
+        if let Err(e) = fs::create_dir_all(&path) {
+            return Err(Error::new(format!(
+                "Failed to create RocksDB directory: `{:?}`.",
+                e
+            )));
+        }
+
+        let blob_db: *mut ffi::rocksdb_blob_t;
+
+        unsafe {
+            blob_db = ffi_try!(ffi::rocksdb_blob_open(
+                opts.inner,
+                blob_opts.inner,
+                cpath.as_ptr() as *const _,
+            ));
+        }
+
+        if blob_db.is_null() {
+            return Err(Error::new("Could not initialize database.".to_owned()));
+        }
+
+        Ok(BlobDB {
+            inner: blob_db,
+            path: path.as_ref().to_path_buf(),
+        })
+    }
+}
 impl DB {
     /// Open a database with default options.
     pub fn open_default<P: AsRef<Path>>(path: P) -> Result<DB, Error> {

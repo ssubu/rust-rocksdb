@@ -27,7 +27,8 @@ use merge_operator::{
 use slice_transform::SliceTransform;
 use {
     BlockBasedIndexType, BlockBasedOptions, Cache, DBCompactionStyle, DBCompressionType, DBRecoveryMode,
-    FlushOptions, MemtableFactory, Options, PlainTableFactoryOptions, WriteOptions, WriteBufferManager, CompactOptions
+    FlushOptions, MemtableFactory, Options, PlainTableFactoryOptions, WriteOptions, WriteBufferManager, CompactOptions,
+    BlobOptions
 };
 
 
@@ -35,6 +36,7 @@ use {
 // pointer. In most cases, however, this pointer is Send-safe because it is never aliased and
 // rocksdb internally does not rely on thread-local information for its user-exposed types.
 unsafe impl Send for Options {}
+unsafe impl Send for BlobOptions {}
 unsafe impl Send for CompactOptions {}
 unsafe impl Send for Cache {}
 unsafe impl Send for WriteOptions {}
@@ -44,6 +46,7 @@ unsafe impl Send for BlockBasedOptions {}
 // Sync is similarly safe for many types because they do not expose interior mutability, and their
 // use within the rocksdb library is generally behind a const reference
 unsafe impl Sync for Options {}
+unsafe impl Sync for BlobOptions {}
 unsafe impl Sync for CompactOptions {}
 unsafe impl Sync for WriteOptions {}
 unsafe impl Sync for FlushOptions {}
@@ -55,6 +58,14 @@ impl Drop for Options {
     fn drop(&mut self) {
         unsafe {
             ffi::rocksdb_options_destroy(self.inner);
+        }
+    }
+}
+
+impl Drop for BlobOptions {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::rocksdb_blob_options_destroy(self.inner);
         }
     }
 }
@@ -122,6 +133,70 @@ impl CompactOptions {
         }
     }
 }
+
+impl Default for BlobOptions {
+    fn default() -> BlobOptions {
+        let blob_opts = unsafe { ffi::rocksdb_blob_options_create() };
+        if blob_opts.is_null() {
+            panic!("Could not create RocksDB blob options");
+        }
+        BlobOptions { inner: blob_opts }
+    }
+}
+
+impl BlobOptions {
+
+    pub fn set_compression_type(&mut self, t: DBCompressionType) {
+        unsafe {
+            ffi::rocksdb_blob_options_set_compression(self.inner, t as c_int);
+        }
+    }
+
+    pub fn set_blob_dir(&mut self, name: &str) {
+        let name = CString::new(name.as_bytes()).unwrap();
+        unsafe {
+            ffi::rocksdb_blob_options_set_blob_dir(self.inner, name.as_ptr() as *const _);
+        }
+    }
+
+    pub fn set_is_path_relative(&mut self, is_relative: bool) {
+        unsafe {
+            ffi::rocksdb_blob_options_is_path_relative(self.inner, is_relative);
+        }
+    }
+
+    pub fn set_is_fifo(&mut self, is_fifo: bool) {
+        unsafe {
+            ffi::rocksdb_blob_options_is_fifo(self.inner, is_fifo);
+        }
+    }
+
+    pub fn set_bytes_per_sync(&mut self, bytes: usize) {
+        unsafe {
+            ffi::rocksdb_blob_options_set_bytes_per_sync(self.inner, bytes as u64);
+        }
+    }
+
+    pub fn set_blob_file_size(&mut self, bytes: usize) {
+        unsafe {
+            ffi::rocksdb_blob_options_set_blob_file_size(self.inner, bytes as u64);
+        }
+    }
+
+    pub fn set_min_blob_size(&mut self, bytes: usize) {
+        unsafe {
+            ffi::rocksdb_blob_options_set_min_blob_size(self.inner, bytes as u64);
+        }
+    }
+
+    pub fn set_max_db_size(&mut self, bytes: usize) {
+        unsafe {
+            ffi::rocksdb_blob_options_set_max_db_size(self.inner, bytes as u64);
+        }
+    }
+}
+
+
 
 impl Cache {
     pub fn new(capacity: size_t) -> Self {

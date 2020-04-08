@@ -93,6 +93,13 @@ pub struct DB {
     path: PathBuf,
 }
 
+pub struct BlobDB {
+    inner: *mut ffi::rocksdb_blob_t,
+    path: PathBuf,
+}
+
+
+
 /// A descriptor for a RocksDB column family.
 ///
 /// A description of the column family, containing the name and `Options`.
@@ -235,6 +242,10 @@ pub struct WriteBufferManager {
 /// ```
 pub struct Options {
     inner: *mut ffi::rocksdb_options_t,
+}
+
+pub struct BlobOptions {
+    inner: *mut ffi::rocksdb_blob_options_t,
 }
 
 /// Optionally wait for the memtable flush to be performed.
