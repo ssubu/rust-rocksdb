@@ -289,12 +289,6 @@ impl BlockBasedOptions {
         }
     }
 
-    pub fn set_pin_l0_filter_and_blocks_in_cache(&mut self, v: bool) {
-        unsafe {
-            ffi::rocksdb_block_based_options_set_pin_l0_filter_and_index_blocks_in_cache(self.inner, v as u8)
-        }
-    }
-
 
     /// Defines the index type to be used for SS-table lookups.
     ///
@@ -323,6 +317,24 @@ impl BlockBasedOptions {
     pub fn set_pin_l0_filter_and_index_blocks_in_cache(&mut self, v: bool) {
         unsafe {
             ffi::rocksdb_block_based_options_set_pin_l0_filter_and_index_blocks_in_cache(
+                self.inner,
+                v as c_uchar,
+            );
+        }
+    }
+
+    pub fn set_pin_top_level_index_and_filter(&mut self, v: bool) {
+        unsafe {
+            ffi::rocksdb_block_based_options_set_pin_top_level_index_and_filter(
+                self.inner,
+                v as c_uchar,
+            );
+        }
+    }
+
+    pub fn set_cache_index_and_filter_blocks_with_high_priority(&mut self, v: bool) {
+        unsafe {
+            ffi::rocksdb_block_based_options_set_cache_index_and_filter_blocks_with_high_priority(
                 self.inner,
                 v as c_uchar,
             );
@@ -360,6 +372,18 @@ impl BlockBasedOptions {
     pub fn set_index_block_restart_interval(&mut self, interval: i32) {
         unsafe {
             ffi::rocksdb_block_based_options_set_index_block_restart_interval(self.inner, interval);
+        }
+    }
+
+    pub fn set_partition_filters(&mut self, v: bool) {
+        unsafe {
+            ffi::rocksdb_block_based_options_set_partition_filters(self.inner, v as c_uchar);
+        }
+    }
+
+    pub fn set_metadata_block_size(&mut self, block_size: u64) {
+        unsafe {
+            ffi::rocksdb_block_based_options_set_metadata_block_size(self.inner, block_size);
         }
     }
 }

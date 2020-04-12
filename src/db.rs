@@ -764,8 +764,8 @@ impl Drop for BlobDB {
 
 impl BlobDB {
     pub fn open_default<P: AsRef<Path>>(path: P) -> Result<BlobDB, Error> {
-        let mut opts = Options::default();
-        let mut blob_opts = BlobOptions::default();
+        let opts = Options::default();
+        let blob_opts = BlobOptions::default();
         BlobDB::open(&opts, &blob_opts, path)
     }
 
