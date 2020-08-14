@@ -26,11 +26,10 @@ use merge_operator::{
 };
 use slice_transform::SliceTransform;
 use {
-    BlockBasedIndexType, BlockBasedOptions, Cache, DBCompactionStyle, DBCompressionType, DBRecoveryMode,
-    FlushOptions, MemtableFactory, Options, PlainTableFactoryOptions, WriteOptions, WriteBufferManager, CompactOptions,
-    BlobOptions
+    BlobOptions, BlockBasedIndexType, BlockBasedOptions, Cache, CompactOptions, DBCompactionStyle,
+    DBCompressionType, DBRecoveryMode, FlushOptions, MemtableFactory, Options,
+    PlainTableFactoryOptions, WriteBufferManager, WriteOptions,
 };
-
 
 // Safety note: auto-implementing Send on most db-related types is prevented by the inner FFI
 // pointer. In most cases, however, this pointer is Send-safe because it is never aliased and
@@ -102,19 +101,19 @@ impl Drop for CompactOptions {
     }
 }
 
-
 impl Default for CompactOptions {
     fn default() -> CompactOptions {
         let compact_files_opts = unsafe { ffi::rocksdb_compactfilesoptions_create() };
         if compact_files_opts.is_null() {
             panic!("Could not create RocksDB compact options");
         }
-        CompactOptions { inner: compact_files_opts }
+        CompactOptions {
+            inner: compact_files_opts,
+        }
     }
 }
 
 impl CompactOptions {
-
     pub fn set_compression_type(&mut self, t: DBCompressionType) {
         unsafe {
             ffi::rocksdb_compactfilesoptions_set_compression(self.inner, t as c_int);
@@ -145,7 +144,6 @@ impl Default for BlobOptions {
 }
 
 impl BlobOptions {
-
     pub fn set_compression_type(&mut self, t: DBCompressionType) {
         unsafe {
             ffi::rocksdb_blob_options_set_compression(self.inner, t as c_int);
@@ -196,8 +194,6 @@ impl BlobOptions {
     }
 }
 
-
-
 impl Cache {
     pub fn new(capacity: size_t) -> Self {
         Self {
@@ -209,38 +205,28 @@ impl Cache {
 impl WriteBufferManager {
     pub fn new(capacity: size_t, cache: Cache) -> Self {
         Self {
-            inner: unsafe {ffi::rocksdb_write_buffer_manager_create(capacity, cache.inner) },
+            inner: unsafe { ffi::rocksdb_write_buffer_manager_create(capacity, cache.inner) },
         }
     }
 
     pub fn memory_usage(&self) -> usize {
-            unsafe {
-                ffi::rocksdb_write_buffer_manager_memory_usage(self.inner)
-        }
+        unsafe { ffi::rocksdb_write_buffer_manager_memory_usage(self.inner) }
     }
 
     pub fn buffer_size(&self) -> usize {
-            unsafe {
-                ffi::rocksdb_write_buffer_manager_buffer_size(self.inner)
-        }
+        unsafe { ffi::rocksdb_write_buffer_manager_buffer_size(self.inner) }
     }
 
     pub fn should_flush(&self) -> bool {
-            unsafe {
-                ffi::rocksdb_write_buffer_manager_should_flush(self.inner)
-        }
+        unsafe { ffi::rocksdb_write_buffer_manager_should_flush(self.inner) }
     }
 
     pub fn mutable_memory_usage(&self) -> usize {
-            unsafe {
-                ffi::rocksdb_write_buffer_manager_mutable_memtable_memory_usage(self.inner)
-        }
+        unsafe { ffi::rocksdb_write_buffer_manager_mutable_memtable_memory_usage(self.inner) }
     }
 }
 
-
 impl BlockBasedOptions {
-
     pub fn set_block_size(&mut self, size: usize) {
         unsafe {
             ffi::rocksdb_block_based_options_set_block_size(self.inner, size);
@@ -288,7 +274,6 @@ impl BlockBasedOptions {
             ffi::rocksdb_block_based_options_set_cache_index_and_filter_blocks(self.inner, v as u8);
         }
     }
-
 
     /// Defines the index type to be used for SS-table lookups.
     ///
@@ -394,7 +379,10 @@ impl Default for BlockBasedOptions {
         if block_opts.is_null() {
             panic!("Could not create RocksDB block based options");
         }
-        BlockBasedOptions { inner: block_opts, cache: Cache::new(0) }
+        BlockBasedOptions {
+            inner: block_opts,
+            cache: Cache::new(0),
+        }
     }
 }
 
@@ -494,12 +482,27 @@ impl Options {
         }
     }
 
-    pub fn set_bottommost_compression_options(&mut self, window_bits: c_int, level: c_int, strategy: c_int, max_dict_bytes: c_int, zstd_max_train_bytes: c_int, enabled: bool) {
+    pub fn set_bottommost_compression_options(
+        &mut self,
+        window_bits: c_int,
+        level: c_int,
+        strategy: c_int,
+        max_dict_bytes: c_int,
+        zstd_max_train_bytes: c_int,
+        enabled: bool,
+    ) {
         unsafe {
-            ffi::rocksdb_options_set_bottommost_compression_options(self.inner, window_bits, level, strategy, max_dict_bytes, zstd_max_train_bytes, enabled);
+            ffi::rocksdb_options_set_bottommost_compression_options(
+                self.inner,
+                window_bits,
+                level,
+                strategy,
+                max_dict_bytes,
+                zstd_max_train_bytes,
+                enabled,
+            );
         }
     }
-
 
     /// Different levels can have different compression policies. There
     /// are cases where most lower levels would like to use quick compression
@@ -1267,20 +1270,23 @@ impl Options {
         }
     }
 
+    pub fn set_max_background_jobs(&mut self, n: c_int) {
+        unsafe {
+            ffi::rocksdb_options_set_max_background_jobs(self.inner, n as i32);
+        }
+    }
+
     pub fn set_soft_pending_compaction_bytes_limit(&mut self, n: usize) {
         unsafe {
             ffi::rocksdb_options_set_soft_pending_compaction_bytes_limit(self.inner, n);
         }
     }
 
-
     pub fn set_hard_pending_compaction_bytes_limit(&mut self, n: usize) {
         unsafe {
             ffi::rocksdb_options_set_hard_pending_compaction_bytes_limit(self.inner, n);
         }
     }
-
-
 
     /// Sets the maximum number of concurrent background memtable flush jobs, submitted to
     /// the HIGH priority thread pool.
@@ -1647,8 +1653,6 @@ impl Options {
             ffi::rocksdb_options_set_inplace_update_support(self.inner, v as u8);
         }
     }
-
-
 }
 
 impl Default for Options {
