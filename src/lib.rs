@@ -98,8 +98,6 @@ pub struct BlobDB {
     path: PathBuf,
 }
 
-
-
 /// A descriptor for a RocksDB column family.
 ///
 /// A description of the column family, containing the name and `Options`.
@@ -152,7 +150,7 @@ impl fmt::Display for Error {
 /// For configuring block-based file storage.
 pub struct BlockBasedOptions {
     inner: *mut ffi::rocksdb_block_based_table_options_t,
-    cache: Cache
+    cache: Cache,
 }
 
 /// Used by BlockBasedOptions::set_index_type.
@@ -336,6 +334,7 @@ mod test {
         is_send::<PlainTableFactoryOptions>();
         is_send::<ColumnFamilyDescriptor>();
         is_send::<ColumnFamily>();
+        is_send::<WriteBatch>();
     }
 
     #[test]
