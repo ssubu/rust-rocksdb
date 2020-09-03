@@ -1653,6 +1653,12 @@ impl Options {
             ffi::rocksdb_options_set_inplace_update_support(self.inner, v as u8);
         }
     }
+
+    pub fn set_arena_block_size(&mut self, size: usize) {
+        unsafe {
+            ffi::rocksdb_options_set_arena_block_size(self.inner, size);
+        }
+    }
 }
 
 impl Default for Options {
