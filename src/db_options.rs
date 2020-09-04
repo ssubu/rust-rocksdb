@@ -733,6 +733,12 @@ impl Options {
         }
     }
 
+    pub fn set_ttl(&mut self, ttl: i32) {
+        unsafe {
+            ffi::rocksdb_options_set_ttl(self.inner, ttl);
+        }
+    }
+
     /// Sets the number of open files that can be used by the DB. You may need to
     /// increase this if your database has a large working set. Value `-1` means
     /// files opened are always kept open. You can estimate number of files based
