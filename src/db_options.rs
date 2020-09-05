@@ -80,7 +80,7 @@ pub struct WriteBufferManager {
 }
 
 impl WriteBufferManager {
-    pub fn new(capacity: size_t, cache: Cache) -> Self {
+    pub fn new(capacity: size_t, cache: &Cache) -> Self {
         Self {
             inner: unsafe { ffi::rocksdb_write_buffer_manager_create(capacity, cache.inner) },
         }
@@ -93,20 +93,12 @@ impl WriteBufferManager {
     pub fn buffer_size(&self) -> usize {
         unsafe { ffi::rocksdb_write_buffer_manager_buffer_size(self.inner) }
     }
-
-    pub fn should_flush(&self) -> bool {
-        unsafe { ffi::rocksdb_write_buffer_manager_should_flush(self.inner) }
-    }
-
-    pub fn mutable_memory_usage(&self) -> usize {
-        unsafe { ffi::rocksdb_write_buffer_manager_mutable_memtable_memory_usage(self.inner) }
-    }
 }
 
-impl Drop for Cache {
+impl Drop for WriteBufferManager {
     fn drop(&mut self) {
         unsafe {
-            ffi::rocksdb_cache_destroy(self.inner);
+            ffi::rocksdb_write_buffer_manager_destroy(self.inner);
         }
     }
 }
@@ -348,6 +340,7 @@ unsafe impl Send for BlockBasedOptions {}
 unsafe impl Send for ReadOptions {}
 unsafe impl Send for IngestExternalFileOptions {}
 unsafe impl Send for WriteBufferManager {}
+unsafe impl Send for Cache {}
 
 // Sync is similarly safe for many types because they do not expose interior mutability, and their
 // use within the rocksdb library is generally behind a const reference
@@ -357,6 +350,7 @@ unsafe impl Sync for BlockBasedOptions {}
 unsafe impl Sync for ReadOptions {}
 unsafe impl Sync for IngestExternalFileOptions {}
 unsafe impl Sync for WriteBufferManager {}
+unsafe impl Sync for Cache {}
 
 impl Drop for Options {
     fn drop(&mut self) {
@@ -1563,6 +1557,12 @@ impl Options {
     pub fn set_db_write_buffer_size(&mut self, size: usize) {
         unsafe {
             ffi::rocksdb_options_set_db_write_buffer_size(self.inner, size);
+        }
+    }
+
+    pub fn set_write_buffer_manager(&mut self, manager: &WriteBufferManager) {
+        unsafe {
+            ffi::rocksdb_options_set_write_buffer_manager(self.inner, manager.inner);
         }
     }
 
