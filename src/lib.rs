@@ -112,7 +112,7 @@ pub use crate::{
         DBCompactionStyle, DBCompressionType, DBPath, DBRecoveryMode, DataBlockIndexType, Env,
         FifoCompactOptions, FlushOptions, IngestExternalFileOptions, MemtableFactory, Options,
         PlainTableFactoryOptions, ReadOptions, UniversalCompactOptions,
-        UniversalCompactionStopStyle, WriteOptions,
+        UniversalCompactionStopStyle, WriteBufferManager, WriteOptions,
     },
     db_pinnable_slice::DBPinnableSlice,
     merge_operator::MergeOperands,
