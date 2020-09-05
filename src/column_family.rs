@@ -39,6 +39,18 @@ impl ColumnFamilyDescriptor {
             options,
         }
     }
+
+    pub fn get_name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn get_options(&self) -> &Options {
+        &self.options
+    }
+
+    pub fn get_options_mut(&mut self) -> &mut Options {
+        &mut self.options
+    }
 }
 
 /// An opaque type used to represent a column family. Returned from some functions, and used
