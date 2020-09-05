@@ -75,6 +75,42 @@ impl Drop for Cache {
     }
 }
 
+pub struct WriteBufferManager {
+    inner: *mut ffi::rocksdb_write_buffer_manager_t,
+}
+
+impl WriteBufferManager {
+    pub fn new(capacity: size_t, cache: Cache) -> Self {
+        Self {
+            inner: unsafe { ffi::rocksdb_write_buffer_manager_create(capacity, cache.inner) },
+        }
+    }
+
+    pub fn memory_usage(&self) -> usize {
+        unsafe { ffi::rocksdb_write_buffer_manager_memory_usage(self.inner) }
+    }
+
+    pub fn buffer_size(&self) -> usize {
+        unsafe { ffi::rocksdb_write_buffer_manager_buffer_size(self.inner) }
+    }
+
+    pub fn should_flush(&self) -> bool {
+        unsafe { ffi::rocksdb_write_buffer_manager_should_flush(self.inner) }
+    }
+
+    pub fn mutable_memory_usage(&self) -> usize {
+        unsafe { ffi::rocksdb_write_buffer_manager_mutable_memtable_memory_usage(self.inner) }
+    }
+}
+
+impl Drop for Cache {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::rocksdb_cache_destroy(self.inner);
+        }
+    }
+}
+
 /// An Env is an interface used by the rocksdb implementation to access
 /// operating system functionality like the filesystem etc.  Callers
 /// may wish to provide a custom Env object when opening a database to
@@ -311,6 +347,7 @@ unsafe impl Send for WriteOptions {}
 unsafe impl Send for BlockBasedOptions {}
 unsafe impl Send for ReadOptions {}
 unsafe impl Send for IngestExternalFileOptions {}
+unsafe impl Send for WriteBufferManager {}
 
 // Sync is similarly safe for many types because they do not expose interior mutability, and their
 // use within the rocksdb library is generally behind a const reference
@@ -319,6 +356,7 @@ unsafe impl Sync for WriteOptions {}
 unsafe impl Sync for BlockBasedOptions {}
 unsafe impl Sync for ReadOptions {}
 unsafe impl Sync for IngestExternalFileOptions {}
+unsafe impl Sync for WriteBufferManager {}
 
 impl Drop for Options {
     fn drop(&mut self) {
@@ -486,6 +524,14 @@ impl BlockBasedOptions {
     pub fn set_cache_index_and_filter_blocks(&mut self, v: bool) {
         unsafe {
             ffi::rocksdb_block_based_options_set_cache_index_and_filter_blocks(self.inner, v as u8);
+        }
+    }
+
+    pub fn set_cache_index_and_filter_blocks_with_high_priority(&mut self, v: bool) {
+        unsafe {
+            ffi::rocksdb_block_based_options_set_cache_index_and_filter_blocks_with_high_priority(
+                self.inner, v as u8,
+            );
         }
     }
 
@@ -926,6 +972,12 @@ impl Options {
     pub fn set_level_compaction_dynamic_level_bytes(&mut self, v: bool) {
         unsafe {
             ffi::rocksdb_options_set_level_compaction_dynamic_level_bytes(self.inner, v as c_uchar);
+        }
+    }
+
+    pub fn set_ttl(&mut self, ttl: i32) {
+        unsafe {
+            ffi::rocksdb_options_set_ttl(self.inner, ttl);
         }
     }
 
