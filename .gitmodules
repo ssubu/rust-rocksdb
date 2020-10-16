@@ -4,6 +4,7 @@
 [submodule "rocksdb_sys/rocksdb"]
 	path = librocksdb-sys/rocksdb
 	url = https://github.com/subu-cliqz/rocksdb.git
+  branch = test_latest
 [submodule "librocksdb-sys/lz4"]
 	path = librocksdb-sys/lz4
 	url = https://github.com/lz4/lz4.git

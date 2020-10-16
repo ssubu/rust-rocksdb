@@ -1009,11 +1009,11 @@ impl Options {
         }
     }
 
-    pub fn set_ttl(&mut self, ttl: i32) {
-        unsafe {
-            ffi::rocksdb_options_set_ttl(self.inner, ttl);
-        }
-    }
+    // pub fn set_ttl(&mut self, ttl: i32) {
+    //     unsafe {
+    //         ffi::rocksdb_options_set_ttl(self.inner, ttl);
+    //     }
+    // }
 
     pub fn set_merge_operator(
         &mut self,
