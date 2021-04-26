@@ -87,7 +87,7 @@ pub struct WriteBufferManager {
 impl WriteBufferManager {
     pub fn new(capacity: size_t, cache: &Cache) -> Self {
         Self {
-            inner: unsafe { ffi::rocksdb_write_buffer_manager_create(capacity, cache.inner) },
+            inner: unsafe { ffi::rocksdb_write_buffer_manager_create(capacity, cache.0.inner) },
         }
     }
 
@@ -1197,7 +1197,7 @@ impl Options {
             ffi::rocksdb_options_set_ttl(self.inner, ttl);
         }
     }
-    
+
     pub fn set_merge_operator_associative<F: MergeFn + Clone>(
         &mut self,
         name: &str,
