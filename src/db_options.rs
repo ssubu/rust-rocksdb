@@ -88,9 +88,20 @@ pub struct WriteBufferManager {
 }
 
 impl WriteBufferManager {
-    pub fn new(capacity: size_t, cache: &Cache) -> Self {
-        Self {
-            inner: unsafe { ffi::rocksdb_write_buffer_manager_create(capacity, cache.0.inner) },
+    pub fn new(capacity: size_t, cache: Option<&Cache>) -> Self {
+        if let Some(cache) = cache {
+            Self {
+                inner: unsafe { ffi::rocksdb_write_buffer_manager_create(capacity, cache.0.inner) },
+            }
+        } else {
+            Self {
+                inner: unsafe {
+                    ffi::rocksdb_write_buffer_manager_create(
+                        capacity,
+                        std::ptr::null_mut() as *mut ffi::rocksdb_cache_t,
+                    )
+                },
+            }
         }
     }
 
