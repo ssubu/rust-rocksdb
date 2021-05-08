@@ -57,6 +57,7 @@ fn build_rocksdb() {
     config.include("rocksdb/");
     config.include("rocksdb/third-party/gtest-1.8.1/fused-src/");
 
+    config.define("ROCKSDB_DISABLE_JEMALLOC", Some("1"));
     if cfg!(feature = "snappy") {
         config.define("SNAPPY", Some("1"));
         config.include("snappy/");
