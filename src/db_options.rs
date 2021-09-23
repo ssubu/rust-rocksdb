@@ -1084,6 +1084,20 @@ impl Options {
         }
     }
 
+    pub fn set_bottommost_compression_options_max_dict_buffer_bytes(
+        &mut self,
+        max_dict_buffer_bytes: u64,
+        enabled: bool,
+    ) {
+        unsafe {
+            ffi::rocksdb_options_set_bottommost_compression_options_max_dict_buffer_bytes(
+                self.inner,
+                max_dict_buffer_bytes,
+                enabled as u8,
+            );
+        }
+    }
+
     /// Different levels can have different compression policies. There
     /// are cases where most lower levels would like to use quick compression
     /// algorithms while the higher levels (which have more data) use
