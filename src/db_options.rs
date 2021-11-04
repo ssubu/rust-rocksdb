@@ -619,9 +619,9 @@ impl BlockBasedOptions {
     pub fn set_bloom_filter(&mut self, bits_per_key: c_double, block_based: bool) {
         unsafe {
             let bloom = if block_based {
-                ffi::rocksdb_filterpolicy_create_bloom(bits_per_key)
+                ffi::rocksdb_filterpolicy_create_bloom(bits_per_key.into())
             } else {
-                ffi::rocksdb_filterpolicy_create_bloom_full(bits_per_key)
+                ffi::rocksdb_filterpolicy_create_bloom_full(bits_per_key.into())
             };
 
             ffi::rocksdb_block_based_options_set_filter_policy(self.inner, bloom);
@@ -1376,6 +1376,43 @@ impl Options {
     pub fn set_ttl(&mut self, ttl: i32) {
         unsafe {
             ffi::rocksdb_options_set_ttl(self.inner, ttl);
+        }
+    }
+
+    /* Blob Options Settings */
+
+    pub fn set_enable_blob_files(&mut self, v: bool) {
+        unsafe {
+            ffi::rocksdb_options_set_enable_blob_files(self.inner, v as c_uchar);
+        }
+    }
+
+    pub fn set_min_blob_size(&mut self, size: u64) {
+        unsafe {
+            ffi::rocksdb_options_set_min_blob_size(self.inner, size);
+        }
+    }
+
+    pub fn set_blob_file_size(&mut self, size: u64) {
+        unsafe {
+            ffi::rocksdb_options_set_blob_file_size(self.inner, size);
+        }
+    }
+
+    pub fn set_blob_compression_type(&mut self, t: DBCompressionType) {
+        unsafe {
+            ffi::rocksdb_options_set_blob_compression_type(self.inner, t as c_int);
+        }
+    }
+    pub fn set_enable_blob_gc(&mut self, v: bool) {
+        unsafe {
+            ffi::rocksdb_options_set_enable_blob_gc(self.inner, v as c_uchar);
+        }
+    }
+
+    pub fn set_blob_gc_age_cutoff(&mut self, v: f64) {
+        unsafe {
+            ffi::rocksdb_options_set_blob_gc_age_cutoff(self.inner, v);
         }
     }
 
