@@ -1258,6 +1258,12 @@ impl Options {
         }
     }
 
+    pub fn set_blob_gc_force_threshold(&mut self, v: f64) {
+        unsafe {
+            ffi::rocksdb_options_set_blob_gc_force_threshold(self.inner, v);
+        }
+    }
+
     pub fn set_merge_operator_associative<F: MergeFn + Clone>(
         &mut self,
         name: &str,
