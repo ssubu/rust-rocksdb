@@ -28,7 +28,7 @@ pub enum Decision {
     /// Remove the object from the database
     Remove,
     /// Change the value for the key
-    Change(&'static [u8]),
+    Change(Vec<u8>),
 }
 
 /// CompactionFilter allows an application to modify/delete a key-value at
@@ -135,8 +135,8 @@ where
         Keep => 0,
         Remove => 1,
         Change(newval) => {
-            *new_value = newval.as_ptr() as *mut c_char;
             *new_value_length = newval.len() as size_t;
+            *new_value = Box::into_raw(newval.into_boxed_slice()) as *mut c_char;
             *value_changed = 1_u8;
             0
         }
