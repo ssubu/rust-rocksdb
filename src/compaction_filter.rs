@@ -136,7 +136,6 @@ where
         Remove => 1,
         Change(newval) => {
             *new_value_length = newval.len() as size_t;
-            *new_value = malloc(*new_value_length) as *mut c_char;
             memcpy(*new_value as _, newval.as_ptr() as _, *new_value_length);
             *value_changed = 1_u8;
             0
