@@ -1155,26 +1155,6 @@ impl Options {
         }
     }
 
-    pub fn set_bottommost_compression_options(
-        &mut self,
-        window_bits: c_int,
-        level: c_int,
-        strategy: c_int,
-        max_dict_bytes: c_int,
-        enabled: bool,
-    ) {
-        unsafe {
-            ffi::rocksdb_options_set_bottommost_compression_options(
-                self.inner,
-                window_bits,
-                level,
-                strategy,
-                max_dict_bytes,
-                enabled as u8,
-            );
-        }
-    }
-
     pub fn set_bottommost_compression_options_zstd_max_train_bytes(
         &mut self,
         zstd_max_train_bytes: c_int,
@@ -1376,49 +1356,6 @@ impl Options {
     pub fn set_ttl(&mut self, ttl: i32) {
         unsafe {
             ffi::rocksdb_options_set_ttl(self.inner, ttl);
-        }
-    }
-
-    /* Blob Options Settings */
-
-    pub fn set_enable_blob_files(&mut self, v: bool) {
-        unsafe {
-            ffi::rocksdb_options_set_enable_blob_files(self.inner, v as c_uchar);
-        }
-    }
-
-    pub fn set_min_blob_size(&mut self, size: u64) {
-        unsafe {
-            ffi::rocksdb_options_set_min_blob_size(self.inner, size);
-        }
-    }
-
-    pub fn set_blob_file_size(&mut self, size: u64) {
-        unsafe {
-            ffi::rocksdb_options_set_blob_file_size(self.inner, size);
-        }
-    }
-
-    pub fn set_blob_compression_type(&mut self, t: DBCompressionType) {
-        unsafe {
-            ffi::rocksdb_options_set_blob_compression_type(self.inner, t as c_int);
-        }
-    }
-    pub fn set_enable_blob_gc(&mut self, v: bool) {
-        unsafe {
-            ffi::rocksdb_options_set_enable_blob_gc(self.inner, v as c_uchar);
-        }
-    }
-
-    pub fn set_blob_gc_age_cutoff(&mut self, v: f64) {
-        unsafe {
-            ffi::rocksdb_options_set_blob_gc_age_cutoff(self.inner, v);
-        }
-    }
-
-    pub fn set_blob_gc_force_threshold(&mut self, v: f64) {
-        unsafe {
-            ffi::rocksdb_options_set_blob_gc_force_threshold(self.inner, v);
         }
     }
 
