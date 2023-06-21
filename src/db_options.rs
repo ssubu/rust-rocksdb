@@ -104,6 +104,47 @@ impl Cache {
     }
 }
 
+pub struct WriteBufferManager {
+    inner: *mut ffi::rocksdb_write_buffer_manager_t,
+}
+
+impl WriteBufferManager {
+    pub fn new(capacity: size_t, cache: Option<&Cache>) -> Self {
+        if let Some(cache) = cache {
+            Self {
+                inner: unsafe {
+                    ffi::rocksdb_write_buffer_manager_create(capacity, cache.0.inner.as_ptr())
+                },
+            }
+        } else {
+            Self {
+                inner: unsafe {
+                    ffi::rocksdb_write_buffer_manager_create(
+                        capacity,
+                        std::ptr::null_mut() as *mut ffi::rocksdb_cache_t,
+                    )
+                },
+            }
+        }
+    }
+
+    pub fn memory_usage(&self) -> usize {
+        unsafe { ffi::rocksdb_write_buffer_manager_memory_usage(self.inner) }
+    }
+
+    pub fn buffer_size(&self) -> usize {
+        unsafe { ffi::rocksdb_write_buffer_manager_buffer_size(self.inner) }
+    }
+}
+
+impl Drop for WriteBufferManager {
+    fn drop(&mut self) {
+        unsafe {
+            ffi::rocksdb_write_buffer_manager_destroy(self.inner);
+        }
+    }
+}
+
 #[derive(Default)]
 pub(crate) struct OptionsMustOutliveDB {
     env: Option<Env>,
@@ -282,6 +323,8 @@ unsafe impl Send for CuckooTableOptions {}
 unsafe impl Send for ReadOptions {}
 unsafe impl Send for IngestExternalFileOptions {}
 unsafe impl Send for CacheWrapper {}
+unsafe impl Send for WriteBufferManager {}
+unsafe impl Send for Cache {}
 
 // Sync is similarly safe for many types because they do not expose interior mutability, and their
 // use within the rocksdb library is generally behind a const reference
@@ -292,6 +335,8 @@ unsafe impl Sync for CuckooTableOptions {}
 unsafe impl Sync for ReadOptions {}
 unsafe impl Sync for IngestExternalFileOptions {}
 unsafe impl Sync for CacheWrapper {}
+unsafe impl Sync for WriteBufferManager {}
+unsafe impl Sync for Cache {}
 
 impl Drop for Options {
     fn drop(&mut self) {
@@ -497,6 +542,14 @@ impl BlockBasedOptions {
             ffi::rocksdb_block_based_options_set_cache_index_and_filter_blocks(
                 self.inner,
                 c_uchar::from(v),
+            );
+        }
+    }
+
+    pub fn set_cache_index_and_filter_blocks_with_high_priority(&mut self, v: bool) {
+        unsafe {
+            ffi::rocksdb_block_based_options_set_cache_index_and_filter_blocks_with_high_priority(
+                self.inner, v as u8,
             );
         }
     }
@@ -1040,6 +1093,34 @@ impl Options {
         }
     }
 
+    pub fn set_bottommost_compression_options_zstd_max_train_bytes(
+        &mut self,
+        zstd_max_train_bytes: c_int,
+        enabled: bool,
+    ) {
+        unsafe {
+            ffi::rocksdb_options_set_bottommost_compression_options_zstd_max_train_bytes(
+                self.inner,
+                zstd_max_train_bytes,
+                enabled as u8,
+            );
+        }
+    }
+
+    pub fn set_bottommost_compression_options_max_dict_buffer_bytes(
+        &mut self,
+        max_dict_buffer_bytes: u64,
+        enabled: bool,
+    ) {
+        unsafe {
+            ffi::rocksdb_options_set_bottommost_compression_options_max_dict_buffer_bytes(
+                self.inner,
+                max_dict_buffer_bytes,
+                enabled as u8,
+            );
+        }
+    }
+
     /// Different levels can have different compression policies. There
     /// are cases where most lower levels would like to use quick compression
     /// algorithms while the higher levels (which have more data) use
@@ -1207,6 +1288,12 @@ impl Options {
                 self.inner,
                 c_uchar::from(v),
             );
+        }
+    }
+
+    pub fn set_ttl(&mut self, ttl: i32) {
+        unsafe {
+            ffi::rocksdb_options_set_ttl(self.inner, ttl);
         }
     }
 
@@ -2075,6 +2162,12 @@ impl Options {
     pub fn set_max_subcompactions(&mut self, num: u32) {
         unsafe {
             ffi::rocksdb_options_set_max_subcompactions(self.inner, num);
+        }
+    }
+
+    pub fn set_write_buffer_manager(&mut self, manager: &WriteBufferManager) {
+        unsafe {
+            ffi::rocksdb_options_set_write_buffer_manager(self.inner, manager.inner);
         }
     }
 
