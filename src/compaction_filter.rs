@@ -13,7 +13,7 @@
 // limitations under the License.
 //
 
-use libc::{c_char, c_int, c_uchar, c_void, size_t};
+use libc::{c_char, c_int, c_uchar, c_void, malloc, memcpy, size_t};
 use std::ffi::{CStr, CString};
 use std::slice;
 
@@ -28,7 +28,7 @@ pub enum Decision {
     /// Remove the object from the database
     Remove,
     /// Change the value for the key
-    Change(&'static [u8]),
+    Change(Vec<u8>),
 }
 
 /// CompactionFilter allows an application to modify/delete a key-value at
@@ -135,8 +135,9 @@ where
         Keep => 0,
         Remove => 1,
         Change(newval) => {
-            *new_value = newval.as_ptr() as *mut c_char;
             *new_value_length = newval.len() as size_t;
+            *new_value = malloc(*new_value_length) as *mut c_char;
+            memcpy(*new_value as _, newval.as_ptr() as _, *new_value_length);
             *value_changed = 1_u8;
             0
         }
@@ -149,7 +150,7 @@ fn test_filter(level: u32, key: &[u8], value: &[u8]) -> Decision {
     use self::Decision::{Change, Keep, Remove};
     match key.first() {
         Some(&b'_') => Remove,
-        Some(&b'%') => Change(b"secret"),
+        Some(&b'%') => Change(b"secret".to_vec()),
         _ => Keep,
     }
 }

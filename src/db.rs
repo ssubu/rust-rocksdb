@@ -19,7 +19,7 @@ use crate::{
     column_family::UnboundColumnFamily,
     db_options::OptionsMustOutliveDB,
     ffi,
-    ffi_util::{from_cstr, opt_bytes_to_ptr, raw_data, to_cpath, CStrLike},
+    ffi_util::{error_message, from_cstr, opt_bytes_to_ptr, raw_data, to_cpath, CStrLike},
     ColumnFamily, ColumnFamilyDescriptor, CompactOptions, DBIteratorWithThreadMode,
     DBPinnableSlice, DBRawIteratorWithThreadMode, DBWALIterator, Direction, Error, FlushOptions,
     IngestExternalFileOptions, IteratorMode, Options, ReadOptions, SnapshotWithThreadMode,
@@ -1659,6 +1659,46 @@ impl<T: ThreadMode, D: DBInner> DBCommon<T, D> {
         key: K,
     ) -> Result<(), Error> {
         self.delete_cf_opt(cf, key.as_ref(), &WriteOptions::default())
+    }
+
+    pub fn rocksdb_approximate_sizes_cf<S: AsRef<[u8]>, E: AsRef<[u8]>>(
+        &self,
+        cf: &impl AsColumnFamilyRef,
+        starts: &[S],
+        ends: &[E],
+    ) -> Result<Vec<u64>, Error> {
+        let mut sizes: Vec<u64> = vec![0; starts.len()];
+        let (starts, starts_len): (Vec<_>, Vec<_>) = starts
+            .iter()
+            .map(|k| (k.as_ref().as_ptr(), k.as_ref().len()))
+            .unzip();
+
+        let (ends, ends_len): (Vec<_>, Vec<_>) = ends
+            .iter()
+            .map(|k| (k.as_ref().as_ptr(), k.as_ref().len()))
+            .unzip();
+        let mut errs: Vec<*mut libc::c_char> = vec![std::ptr::null_mut(); starts.len()];
+        unsafe {
+            ffi::rocksdb_approximate_sizes_cf(
+                self.inner.inner(),
+                cf.inner(),
+                starts.len() as i32,
+                starts.as_ptr() as *const *const c_char,
+                starts_len.as_ptr(),
+                ends.as_ptr() as *const *const c_char,
+                ends_len.as_ptr(),
+                sizes.as_mut_ptr(),
+                errs.as_mut_ptr() as *mut *mut c_char,
+            );
+
+            // Return the first error.
+            for err in errs {
+                if !err.is_null() {
+                    return Err(Error::new(error_message(err)));
+                }
+            }
+            Ok(sizes)
+        }
     }
 
     /// Runs a manual compaction on the Range of keys given. This is not likely to be needed for typical usage.
