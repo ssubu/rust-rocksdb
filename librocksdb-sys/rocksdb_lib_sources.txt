@@ -157,6 +157,12 @@ options/options_helper.cc
 options/options_parser.cc
 port/mmap.cc
 port/port_posix.cc
+port/win/env_default.cc
+port/win/env_win.cc
+port/win/io_win.cc
+port/win/port_win.cc
+port/win/win_logger.cc
+port/win/win_thread.cc
 port/stack_trace.cc
 table/adaptive/adaptive_table_factory.cc
 table/block_based/binary_search_index_reader.cc
@@ -243,6 +249,8 @@ util/stderr_logger.cc
 util/string_util.cc
 util/thread_local.cc
 util/threadpool_imp.cc
+util/udt_util.cc
+util/write_batch_util.cc
 util/xxhash.cc
 utilities/agg_merge/agg_merge.cc
 utilities/backup/backup_engine.cc
